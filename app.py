@@ -17,7 +17,6 @@ muted_users = set()
 
 ADMIN_PASSWORD = "9980"
 
-# Kullanıcı veritabanını oku
 def load_users():
     if not os.path.exists(USER_DB_FILE):
         with open(USER_DB_FILE, 'w') as f:
@@ -25,7 +24,6 @@ def load_users():
     with open(USER_DB_FILE, 'r') as f:
         return json.load(f)
 
-# Kullanıcı veritabanına yaz
 def save_users(users_db):
     with open(USER_DB_FILE, 'w') as f:
         json.dump(users_db, f)
@@ -116,7 +114,6 @@ def on_join(data):
     messages.append(msg)
     emit('message', {'msg': msg, 'admin': False}, broadcast=True)
 
-    # Yeni gelen kişiye geçmiş mesajları gönder
     for m in messages:
         emit('message', {'msg': m, 'admin': False})
 
@@ -145,7 +142,6 @@ def handle_message(data):
 
     is_admin = session.get('is_admin', False)
 
-    # Admin komutları
     if is_admin:
         if text.startswith('/reset'):
             messages.clear()
@@ -190,6 +186,9 @@ def handle_message(data):
     messages.append(full_msg)
     emit('message', {'msg': full_msg, 'admin': False}, broadcast=True)
 
+# 🔧 Railway'de çalışması için PORT ve 0.0.0.0 ayarı önemli
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    import os
+    port = int(os.environ.get("PORT", 8080))
+    socketio.run(app, host='0.0.0.0', port=port)
 
