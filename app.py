@@ -1,9 +1,13 @@
+import json
+import os
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_socketio import SocketIO, emit, disconnect
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'gizlisifre'
 socketio = SocketIO(app, manage_session=False)
+
+USER_DB_FILE = 'users.json'
 
 messages = []
 users = {}          # sid -> nickname
@@ -13,48 +17,81 @@ muted_users = set()
 
 ADMIN_PASSWORD = "9980"
 
+# Kullanıcı veritabanını oku
+def load_users():
+    if not os.path.exists(USER_DB_FILE):
+        with open(USER_DB_FILE, 'w') as f:
+            json.dump({}, f)
+    with open(USER_DB_FILE, 'r') as f:
+        return json.load(f)
+
+# Kullanıcı veritabanına yaz
+def save_users(users_db):
+    with open(USER_DB_FILE, 'w') as f:
+        json.dump(users_db, f)
+
 @app.route('/')
-def nickname():
-    return render_template('nickname.html')
+def home():
+    return render_template('home.html')
+
+@app.route('/register', methods=['POST'])
+def register():
+    nickname = request.form.get('nickname').strip()
+    password = request.form.get('password').strip()
+
+    if not nickname or not password:
+        return "Nickname ve şifre gerekli.", 400
+
+    if nickname.lower() == 'admin':
+        return "Admin kullanıcı adı kullanılamaz.", 400
+
+    users_db = load_users()
+    if nickname in users_db:
+        return "Bu nickname zaten alınmış.", 400
+
+    users_db[nickname] = password
+    save_users(users_db)
+
+    session['nickname'] = nickname
+    session['is_admin'] = False
+
+    return redirect(url_for('chat'))
 
 @app.route('/login', methods=['POST'])
 def login():
     nickname = request.form.get('nickname').strip()
-    password = request.form.get('password', '').strip()
+    password = request.form.get('password').strip()
 
-    if not nickname:
-        return redirect(url_for('nickname'))
+    if not nickname or not password:
+        return "Nickname ve şifre gerekli.", 400
 
     if nickname.lower() == 'admin':
         if password != ADMIN_PASSWORD:
-            return redirect(url_for('nickname'))
+            return "Admin şifresi yanlış.", 403
+        session['nickname'] = 'admin'
         session['is_admin'] = True
-    else:
-        session['is_admin'] = False
+        return redirect(url_for('chat'))
 
-    # Ban kontrolü
-    ip = request.remote_addr
+    users_db = load_users()
+    if nickname not in users_db:
+        return "Böyle bir kullanıcı yok.", 403
+
+    if users_db[nickname] != password:
+        return "Şifre yanlış.", 403
+
     if nickname in banned_users:
         return "Banlandınız.", 403
 
-    # Şifre sorgulama - örnek: kullanıcı daha önce girmişse sessionda şifresi tutuluyor
-    # Bu örnekte basit, ileride db ile değiştirilebilir.
-    if 'passwords' not in session:
-        session['passwords'] = {}
-    stored_pw = session['passwords'].get(nickname)
-    if stored_pw and stored_pw != password:
-        return "Şifre yanlış.", 403
-    elif not stored_pw:
-        session['passwords'][nickname] = password
-
     session['nickname'] = nickname
+    session['is_admin'] = False
+
     return redirect(url_for('chat'))
 
 @app.route('/chat')
 def chat():
     nickname = session.get('nickname')
     if not nickname:
-        return redirect(url_for('nickname'))
+        return redirect(url_for('home'))
     is_admin = session.get('is_admin', False)
     return render_template('chat.html', nickname=nickname, admin=is_admin)
 
@@ -94,7 +131,6 @@ def on_disconnect():
         users.pop(sid)
         user_ips.pop(nickname, None)
         muted_users.discard(nickname)
-        banned_users.discard(nickname)
 
 @socketio.on('message')
 def handle_message(data):
@@ -121,7 +157,6 @@ def handle_message(data):
             if target:
                 banned_users.add(target)
                 emit('message', {'msg': f"Kullanıcı banlandı: {target}", 'admin': True}, broadcast=True)
-                # Banlanan kişi varsa onun bağlantısını kopar
                 for sid_, nick_ in list(users.items()):
                     if nick_ == target:
                         emit('message', {'msg': 'Banlandığınız için bağlantınız kesildi.', 'admin': True}, room=sid_)
@@ -151,7 +186,6 @@ def handle_message(data):
         emit('message', {'msg': 'Susturuldunuz, mesaj gönderemezsiniz.', 'admin': True}, room=sid)
         return
 
-    # Mesajı tüm kullanıcılara yayınla
     full_msg = f"{nickname}: {text}"
     messages.append(full_msg)
     emit('message', {'msg': full_msg, 'admin': False}, broadcast=True)
