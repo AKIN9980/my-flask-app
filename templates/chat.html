@@ -1,184 +1,144 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Anonim Chat</title>
-  <style>
-    /* Temel stil */
-    body { font-family: Arial, sans-serif; margin: 0; padding: 10px; }
-    #chatMessages { border: 1px solid #ccc; height: 50vh; overflow-y: auto; padding: 5px; }
-    #inputMsg { width: 80%; }
-    #btnSend { width: 18%; }
-    #btnMic { margin-top: 10px; }
-  </style>
+    <meta charset="UTF-8" />
+    <title>Anonim Sohbet</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #0f0;
+            margin: 0; padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        h2 {
+            text-align: center;
+            margin: 10px 0;
+        }
+        #chat {
+            flex-grow: 1;
+            overflow-y: auto;
+            border: 2px solid #0f0;
+            padding: 10px;
+            width: 90vw;
+            max-width: 700px;
+            margin: 0 auto;
+            background: #111;
+            box-sizing: border-box;
+        }
+        #msg {
+            width: 90vw;
+            max-width: 700px;
+            margin: 10px auto 20px;
+            padding: 10px;
+            background: #222;
+            color: #0f0;
+            border: 1px solid #0f0;
+            box-sizing: border-box;
+            display: block;
+        }
+        button {
+            display: block;
+            width: 90vw;
+            max-width: 700px;
+            margin: 0 auto 10px;
+            padding: 10px;
+            background-color: #0f0;
+            border: none;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .admin {
+            color: #f00;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-  <h2>Hoşgeldin, {{ nickname }}</h2>
+    <h2>Anonim Sohbet - Tema: Hacker</h2>
+    <div id="chat"></div>
+    <input type="text" id="msg" placeholder="Mesajınızı yazın ve Enter ile gönderin..." autocomplete="off" autofocus />
+    <button onclick="sendMessage()">Gönder</button>
+    <button id="voiceBtn">Mikrofonu Aç</button>
 
-  <div id="chatMessages"></div>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+    <script>
+        var socket = io();
 
-  <input id="inputMsg" autocomplete="off" placeholder="Mesaj yaz..." />
-  <button id="btnSend">Gönder</button>
-  <br />
-  <button id="btnMic">Ses Aç</button>
-
-  <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
-  <script>
-    const socket = io();
-
-    const chatMessages = document.getElementById('chatMessages');
-    const inputMsg = document.getElementById('inputMsg');
-    const btnSend = document.getElementById('btnSend');
-    const btnMic = document.getElementById('btnMic');
-
-    // Mesaj gönderme
-    function sendMessage() {
-      const msg = inputMsg.value.trim();
-      if (!msg) return;
-      socket.emit('message', {msg: msg});
-      inputMsg.value = '';
-    }
-
-    btnSend.onclick = sendMessage;
-
-    inputMsg.addEventListener("keypress", function(e) {
-      if (e.key === "Enter") sendMessage();
-    });
-
-    socket.on('message', function(data) {
-      const el = document.createElement('div');
-      el.textContent = data.msg;
-      chatMessages.appendChild(el);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    });
-
-    // Kullanıcı join eventi
-    socket.emit('join', {nickname: "{{ nickname }}", isAdmin: {{ 'true' if admin else 'false' }}});
-
-    // --- SESLİ CHAT ---
-
-    let localStream = null;
-    let peers = {};
-    let isMicOpen = false;
-
-    btnMic.onclick = async () => {
-      if (isMicOpen) {
-        closeMic();
-      } else {
-        await openMic();
-      }
-    };
-
-    async function openMic() {
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        isMicOpen = true;
-        btnMic.innerText = "Sesi Kapat";
-        socket.emit('voice-on');
-      } catch (err) {
-        alert("Mikrofon erişimi reddedildi veya hata oluştu.");
-      }
-    }
-
-    function closeMic() {
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-      }
-      isMicOpen = false;
-      btnMic.innerText = "Ses Aç";
-      socket.emit('voice-off');
-
-      for (let sid in peers) {
-        peers[sid].close();
-        delete peers[sid];
-      }
-    }
-
-    socket.on('voice-user-joined', async (data) => {
-      const sid = data.sid;
-      if (!isMicOpen) return;
-
-      const pc = new RTCPeerConnection();
-
-      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit('voice-candidate', { to: sid, candidate: event.candidate });
+        function adjustChatHeight() {
+            const headerHeight = document.querySelector('h2').offsetHeight;
+            const inputHeight = document.getElementById('msg').offsetHeight;
+            const buttonHeight = document.querySelector('button').offsetHeight * 2 + 10; // iki buton ve margin
+            const totalUsedHeight = headerHeight + inputHeight + buttonHeight + 70;
+            const newHeight = window.innerHeight - totalUsedHeight;
+            const chatDiv = document.getElementById('chat');
+            chatDiv.style.height = newHeight + 'px';
         }
-      };
 
-      pc.ontrack = (event) => {
-        const audio = document.createElement('audio');
-        audio.srcObject = event.streams[0];
-        audio.autoplay = true;
-        audio.style.display = "none";  // Sayfada görünmez tut
-        document.body.appendChild(audio);
-      };
+        window.addEventListener('resize', adjustChatHeight);
+        window.addEventListener('load', adjustChatHeight);
 
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
+        socket.on('connect', () => {
+            socket.emit('join', { nickname: "{{ nickname }}" });
+        });
 
-      socket.emit('voice-offer', { to: sid, offer: offer });
+        socket.on('message', function(data) {
+            var chat = document.getElementById('chat');
+            var p = document.createElement('p');
+            p.textContent = data.msg;
+            if (data.admin) p.classList.add('admin');
+            chat.appendChild(p);
+            chat.scrollTop = chat.scrollHeight;
+        });
 
-      peers[sid] = pc;
-    });
-
-    socket.on('voice-user-left', (data) => {
-      const sid = data.sid;
-      if (peers[sid]) {
-        peers[sid].close();
-        delete peers[sid];
-      }
-    });
-
-    socket.on('voice-offer', async (data) => {
-      const fromSid = data.from;
-      if (!isMicOpen) return;
-
-      const pc = new RTCPeerConnection();
-
-      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-      pc.ontrack = (event) => {
-        const audio = document.createElement('audio');
-        audio.srcObject = event.streams[0];
-        audio.autoplay = true;
-        audio.style.display = "none";
-        document.body.appendChild(audio);
-      };
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit('voice-candidate', { to: fromSid, candidate: event.candidate });
+        function sendMessage() {
+            var input = document.getElementById('msg');
+            var text = input.value.trim();
+            if (!text) return;
+            socket.emit('message', { msg: text });
+            if (text === "/exit") {
+                socket.disconnect();
+                window.location.href = "/";
+            }
+            input.value = '';
         }
-      };
 
-      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+        document.getElementById('msg').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+                event.preventDefault();
+            }
+        });
 
-      socket.emit('voice-answer', { to: fromSid, answer: answer });
+        // Voice chat için:
+        let micOn = false;
+        let mediaStream = null;
+        const voiceBtn = document.getElementById('voiceBtn');
 
-      peers[fromSid] = pc;
-    });
-
-    socket.on('voice-answer', async (data) => {
-      const fromSid = data.from;
-      const pc = peers[fromSid];
-      if (!pc) return;
-      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-    });
-
-    socket.on('voice-candidate', async (data) => {
-      const fromSid = data.from;
-      const pc = peers[fromSid];
-      if (!pc) return;
-      await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-    });
-
-  </script>
+        voiceBtn.addEventListener('click', async () => {
+            if (!micOn) {
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    // Burada mikrofon aktif, istersen ses dinleyicilere aktarılabilir.
+                    voiceBtn.textContent = "Mikrofonu Kapat";
+                    micOn = true;
+                } catch (err) {
+                    alert("Mikrofon açılamadı: " + err.message);
+                }
+            } else {
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                    mediaStream = null;
+                }
+                voiceBtn.textContent = "Mikrofonu Aç";
+                micOn = false;
+            }
+        });
+    </script>
 </body>
 </html>
 
