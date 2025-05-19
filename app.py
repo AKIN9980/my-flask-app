@@ -1,133 +1,167 @@
-from flask import Flask, render_template, request, redirect
-from flask_socketio import SocketIO, emit, disconnect
-import re
+from flask import Flask, render_template, request, redirect, url_for, session
+from flask_socketio import SocketIO, emit
+import eventlet
+eventlet.monkey_patch()
 
 app = Flask(__name__)
-socketio = SocketIO(app)
+app.secret_key = 'çok-gizli-bir-anahtar'
+socketio = SocketIO(app, async_mode='eventlet')
 
+nicknames = set()
 messages = []
-users = {}
-banned_ips = set()
-muted_users = set()
+banned = set()
+admin_password = "9980"  # Dilediğin gibi değiştir
 
-ADMIN_NICKNAME = 'Admin'
-ADMIN_PASSWORD = '9980'
+def is_admin():
+    return session.get('is_admin', False)
 
-@app.route('/')
-def index():
+@app.route('/', methods=['GET', 'POST'])
+def nickname():
+    if request.method == 'POST':
+        nick = request.form.get('nickname', '').strip()
+        password = request.form.get('password', '').strip()
+
+        if not nick:
+            return render_template('nickname.html', error="Lütfen nickname girin.")
+
+        if nick in banned:
+            return render_template('nickname.html', error="Bu kullanıcı engellenmiştir.")
+
+        if nick == "Admin":
+            if password != admin_password:
+                return render_template('nickname.html', error="Admin şifresi yanlış.")
+            session['is_admin'] = True
+        else:
+            session['is_admin'] = False
+
+        if nick in nicknames:
+            return render_template('nickname.html', error="Bu nickname zaten kullanılıyor.")
+
+        nicknames.add(nick)
+        session['nickname'] = nick
+        return redirect(url_for('chat'))
+
     return render_template('nickname.html')
 
 @app.route('/chat')
 def chat():
-    nickname = request.args.get('nickname')
-    if not nickname:
-        return redirect('/')
-    return render_template('chat.html', nickname=nickname)
-
-@socketio.on('connect')
-def handle_connect():
-    ip = request.remote_addr
-    if ip in banned_ips:
-        disconnect()
-        return
-    emit('load_messages', messages)
+    if 'nickname' not in session:
+        return redirect(url_for('nickname'))
+    return render_template('chat.html', nickname=session['nickname'], is_admin=is_admin(), messages=messages)
 
 @socketio.on('send_message')
 def handle_message(data):
-    ip = request.remote_addr
-    nickname = users.get(request.sid)
-    if ip in banned_ips:
-        return
-    if nickname in muted_users:
-        return
-
     text = data.get('text', '').strip()
-    if not text:
+    nick = session.get('nickname')
+    if not nick or not text:
         return
 
-    # Komut işlemleri
     if text.startswith('/'):
-        if text.lower() in ['/help', '/?']:
+        # Yardım komutları
+        if text in ['/help', '/?']:
             help_text = (
-                'Komutlar:\n'
-                '/help veya /? - Yardım\n'
-                '/exit - Çıkış yap\n'
+                "Komutlar:\n"
+                "/help, /? - Yardım\n"
+                "/exit - Çıkış yap\n"
+                "Admin Komutları:\n"
+                "/reset - Sohbeti temizle\n"
+                "/ip <nick> - Kullanıcının IP'sini göster\n"
+                "/kick <nick> - Kullanıcıyı at\n"
+                "/ban <nick> - Kullanıcıyı engelle\n"
+                "/unban <nick> - Engel kaldır\n"
+                "/list - Aktif kullanıcılar"
             )
-            if nickname == ADMIN_NICKNAME:
-                help_text += (
-                    '/reset - Sohbeti temizle\n'
-                    '/ban <ip> - IP banla\n'
-                    '/mute <nickname> - Sustur\n'
-                    '/unmute <nickname> - Susturmayı kaldır\n'
-                    '/ip <nickname> - IP öğren\n'
-                )
-            emit('receive_message', {'nickname': 'Sistem', 'text': help_text})
+            emit('receive_message', {'nickname': 'Sistem', 'text': help_text}, room=request.sid)
             return
 
-        if text.lower() == '/exit':
-            if nickname:
-                users.pop(request.sid, None)
-                emit('receive_message', {'nickname': 'Sistem', 'text': f'{nickname} çıktı.'}, broadcast=True)
-                disconnect()
+        if text == '/exit':
+            nicknames.discard(nick)
+            session.pop('nickname', None)
+            session.pop('is_admin', None)
+            emit('exit_chat', room=request.sid)
+            emit('receive_message', {'nickname': 'Sistem', 'text': f'{nick} sohbetten çıktı.'}, broadcast=True)
             return
 
-        if nickname != ADMIN_NICKNAME:
-            emit('receive_message', {'nickname': 'Sistem', 'text': 'Bu komut sadece admin için geçerlidir.'})
+        if not is_admin():
+            emit('receive_message', {'nickname': 'Sistem', 'text': 'Bu komutu kullanmak için admin olmalısınız.'}, room=request.sid)
             return
 
-        # Admin komutları:
-        parts = text.split()
-        cmd = parts[0].lower()
+        # Admin komutları
+        parts = text.split(' ', 1)
+        command = parts[0]
+        param = parts[1].strip() if len(parts) > 1 else None
 
-        if cmd == '/reset':
+        if command == '/reset':
             messages.clear()
-            emit('load_messages', [], broadcast=True)
-            emit('receive_message', {'nickname': 'Sistem', 'text': 'Sohbet temizlendi (Admin tarafından).'}, broadcast=True)
+            emit('receive_message', {'nickname': 'Sistem', 'text': 'Sohbet sıfırlandı!'}, broadcast=True)
             return
 
-        if cmd == '/ban' and len(parts) == 2:
-            banned_ips.add(parts[1])
-            emit('receive_message', {'nickname': 'Sistem', 'text': f'IP {parts[1]} banlandı.'}, broadcast=True)
+        if command == '/ip':
+            if not param:
+                emit('receive_message', {'nickname': 'Sistem', 'text': 'Kullanıcı adı belirtmelisin!'}, room=request.sid)
+                return
+            if param in nicknames:
+                # IP bilgisi tutulmuyorsa sabit örnek veriyoruz
+                emit('receive_message', {'nickname': 'Sistem', 'text': f'{param} IP: 127.0.0.1 (demo)'}, room=request.sid)
+            else:
+                emit('receive_message', {'nickname': 'Sistem', 'text': f'{param} bulunamadı.'}, room=request.sid)
             return
 
-        if cmd == '/mute' and len(parts) == 2:
-            muted_users.add(parts[1])
-            emit('receive_message', {'nickname': 'Sistem', 'text': f'{parts[1]} susturuldu.'}, broadcast=True)
+        if command == '/kick':
+            if not param:
+                emit('receive_message', {'nickname': 'Sistem', 'text': 'Kullanıcı adı belirtmelisin!'}, room=request.sid)
+                return
+            if param in nicknames:
+                nicknames.discard(param)
+                emit('receive_message', {'nickname': 'Sistem', 'text': f'{param} sohbetten atıldı.'}, broadcast=True)
+                # Kicklenen kullanıcıyı sayfadan at (emit gönder)
+                emit('exit_chat', room=request.sid, include_self=False)
+            else:
+                emit('receive_message', {'nickname': 'Sistem', 'text': f'{param} bulunamadı.'}, room=request.sid)
             return
 
-        if cmd == '/unmute' and len(parts) == 2:
-            muted_users.discard(parts[1])
-            emit('receive_message', {'nickname': 'Sistem', 'text': f'{parts[1]} susturma kaldırıldı.'}, broadcast=True)
+        if command == '/ban':
+            if not param:
+                emit('receive_message', {'nickname': 'Sistem', 'text': 'Kullanıcı adı belirtmelisin!'}, room=request.sid)
+                return
+            banned.add(param)
+            if param in nicknames:
+                nicknames.discard(param)
+                emit('exit_chat', room=request.sid, include_self=False)
+            emit('receive_message', {'nickname': 'Sistem', 'text': f'{param} engellendi.'}, broadcast=True)
             return
 
-        if cmd == '/ip' and len(parts) == 2:
-            target = parts[1]
-            for sid, nick in users.items():
-                if nick == target:
-                    # ip bilgisi yok socket'te, normal şartlarda loglanır veya request ip kullanılır
-                    emit('receive_message', {'nickname': 'Sistem', 'text': f'{target} IP adresi: ???'}, room=request.sid)
-                    return
-            emit('receive_message', {'nickname': 'Sistem', 'text': f'{target} bulunamadı.'}, room=request.sid)
+        if command == '/unban':
+            if not param:
+                emit('receive_message', {'nickname': 'Sistem', 'text': 'Kullanıcı adı belirtmelisin!'}, room=request.sid)
+                return
+            if param in banned:
+                banned.discard(param)
+                emit('receive_message', {'nickname': 'Sistem', 'text': f'{param} engeli kaldırıldı.'}, room=request.sid)
+            else:
+                emit('receive_message', {'nickname': 'Sistem', 'text': f'{param} engelli değil.'}, room=request.sid)
             return
 
-    # Normal mesaj
-    messages.append({'nickname': nickname, 'text': text})
-    # mesajları 100 ile sınırla (isteğe göre)
-    if len(messages) > 100:
-        messages.pop(0)
-    emit('receive_message', {'nickname': nickname, 'text': text}, broadcast=True)
+        if command == '/list':
+            aktifler = ', '.join(nicknames)
+            emit('receive_message', {'nickname': 'Sistem', 'text': f'Aktif kullanıcılar: {aktifler}'}, room=request.sid)
+            return
 
-@socketio.on('set_nickname')
-def set_nickname(nick):
-    users[request.sid] = nick
-    emit('receive_message', {'nickname': 'Sistem', 'text': f'{nick} sohbete katıldı.'}, broadcast=True)
+        emit('receive_message', {'nickname': 'Sistem', 'text': 'Bilinmeyen komut!'}, room=request.sid)
+        return
+
+    # Normal mesaj kaydet ve yayınla
+    msg_obj = {'nickname': nick, 'text': text}
+    messages.append(msg_obj)
+    emit('receive_message', msg_obj, broadcast=True)
 
 @socketio.on('disconnect')
-def handle_disconnect():
-    nick = users.pop(request.sid, None)
-    if nick:
-        emit('disconnect_message', f'{nick} çıktı.', broadcast=True)
+def on_disconnect():
+    nick = session.get('nickname')
+    if nick and nick in nicknames:
+        nicknames.discard(nick)
+        emit('receive_message', {'nickname': 'Sistem', 'text': f'{nick} ayrıldı.'}, broadcast=True)
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True)
 

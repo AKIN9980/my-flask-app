@@ -1,102 +1,55 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Sohbet</title>
-  <style>
-    body, html {
-      margin: 0; padding: 0;
-      height: 100%;
-      background: #121212;
-      color: #eee;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    #chat-box {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      max-width: 800px;
-      margin: 0 auto;
-      width: 100%;
-    }
-    #messages {
-      flex: 1;
-      padding: 20px;
-      overflow-y: auto;
-      background: #1f1f1f;
-      border-radius: 10px;
-      box-shadow: inset 0 0 10px #000;
-      margin: 20px 0;
-      font-size: 1rem;
-      line-height: 1.4;
-    }
-    #msg-input {
-      width: 100%;
-      padding: 15px 20px;
-      font-size: 1.1rem;
-      border: none;
-      border-radius: 12px;
-      background: #2b2b2b;
-      color: #eee;
-      outline: none;
-      box-shadow: 0 0 10px #000 inset;
-      transition: background 0.3s ease;
-    }
-    #msg-input:focus {
-      background: #3a3a3a;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sohbet</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.1/socket.io.min.js" integrity="sha512-wZ6EdN8gR/KL/9Hd13kqJxHDDY/x2goREVK9q0h6Na/N2Pp1HTSru8/4X1FfRTqp5TAw+jA2EodvKHmhIq5xqg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
-  <div id="chat-box">
-    <div id="messages"></div>
-    <input id="msg-input" type="text" autocomplete="off" placeholder="Mesajınızı yazın ve Enter'a basın..." autofocus />
+<div class="chat-container">
+  <h2>Hoşgeldin, {{ nickname }} {% if is_admin %}(Admin){% endif %}</h2>
+  <div id="messages">
+    {% for msg in messages %}
+      <div><strong>{{ msg.nickname }}:</strong> {{ msg.text }}</div>
+    {% endfor %}
   </div>
+  <form id="messageForm">
+    <input id="messageInput" autocomplete="off" placeholder="Mesajını yaz..." autofocus />
+  </form>
+</div>
 
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-  <script>
-    const socket = io();
-    const input = document.getElementById('msg-input');
-    const messagesDiv = document.getElementById('messages');
+<script>
+  const socket = io();
 
-    function addMessage(msg){
-      const div = document.createElement('div');
-      div.textContent = `${msg.nickname}: ${msg.text}`;
-      if(msg.nickname.toLowerCase() === 'admin'){
-        div.style.color = '#61dafb';
-        div.style.fontWeight = 'bold';
-      }
-      messagesDiv.appendChild(div);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
+  const messagesDiv = document.getElementById('messages');
+  const input = document.getElementById('messageInput');
+  const form = document.getElementById('messageForm');
 
-    input.addEventListener('keydown', e => {
-      if(e.key === 'Enter' && input.value.trim() !== ''){
-        socket.emit('send_message', { text: input.value.trim() });
-        input.value = '';
-      }
-    });
+  function addMessage(data) {
+    const div = document.createElement('div');
+    div.innerHTML = `<strong>${data.nickname}:</strong> ${data.text}`;
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
 
-    socket.on('receive_message', addMessage);
+  socket.on('receive_message', (data) => {
+    addMessage(data);
+  });
 
-    socket.on('load_messages', msgs => {
-      messagesDiv.innerHTML = '';
-      msgs.forEach(addMessage);
-    });
+  socket.on('exit_chat', () => {
+    window.location.href = '/';
+  });
 
-    socket.on('disconnect_message', text => {
-      // Opsiyonel: kullanıcı çıkınca bilgilendirme
-      const div = document.createElement('div');
-      div.textContent = text;
-      div.style.fontStyle = 'italic';
-      div.style.opacity = '0.7';
-      messagesDiv.appendChild(div);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    });
-  </script>
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (text.length === 0) return;
+    socket.emit('send_message', { text });
+    input.value = '';
+  });
+</script>
 </body>
 </html>
 

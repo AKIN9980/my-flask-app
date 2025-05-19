@@ -1,76 +1,23 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Takma Ad Seçimi</title>
-  <style>
-    body {
-      margin: 0; padding: 0;
-      height: 100vh;
-      background: #121212;
-      color: #eee;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    #form {
-      background: #1f1f1f;
-      padding: 30px 40px;
-      border-radius: 12px;
-      box-shadow: 0 0 15px #0f0f0f;
-      text-align: center;
-      width: 320px;
-    }
-    h2 {
-      margin-bottom: 20px;
-      font-weight: 600;
-      color: #61dafb;
-    }
-    input {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      background: #2b2b2b;
-      color: #eee;
-      font-size: 1rem;
-      outline: none;
-      transition: background 0.3s ease;
-    }
-    input:focus {
-      background: #3a3a3a;
-    }
-    button {
-      display: none; /* Buton kaldırıldı */
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Nickname Seç</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <div id="form">
-    <h2>Takma Adını Gir</h2>
-    <input id="nickname" type="text" placeholder="Takma adınız..." autofocus />
-  </div>
-
-  <script>
-    const input = document.getElementById('nickname');
-    const storedNick = localStorage.getItem('nickname');
-    if(storedNick){
-      window.location.href = '/chat?nickname=' + encodeURIComponent(storedNick);
-    }
-
-    input.addEventListener('keydown', e => {
-      if(e.key === 'Enter'){
-        const nick = input.value.trim();
-        if(!nick){
-          alert('Lütfen bir takma ad girin.');
-          return;
-        }
-        localStorage.setItem('nickname', nick);
-        window.location.href = '/chat?nickname=' + encodeURIComponent(nick);
-      }
-    });
-  </script>
+<div class="login-container">
+  <h2>Nickname seç</h2>
+  {% if error %}
+    <div class="error">{{ error }}</div>
+  {% endif %}
+  <form method="post">
+    <input type="text" name="nickname" placeholder="Nickname" required autofocus>
+    <input type="password" name="password" placeholder="Admin şifresi (sadece Admin için)">
+    <button type="submit">Giriş</button>
+  </form>
+</div>
 </body>
 </html>
 
