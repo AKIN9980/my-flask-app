@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <title>Giriş - Hacker Tema</title>
+    <style>
+        body {
+            background-color: black;
+            color: #0f0;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        form {
+            border: 2px solid #0f0;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        input {
+            background-color: black;
+            color: #0f0;
+            border: 1px solid #0f0;
+            margin: 5px 0;
+            padding: 8px;
+            width: 100%;
+            font-family: monospace;
+            font-size: 1rem;
+        }
+        input:focus {
+            outline: none;
+            border-color: #0c0;
+        }
+        button {
+            background-color: #0f0;
+            color: black;
+            border: none;
+            padding: 10px;
+            width: 100%;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0c0;
+        }
+        .error {
+            color: red;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <form method="POST">
+        <h2>Giriş Yap</h2>
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+        <input type="text" name="nickname" placeholder="Nickname" autocomplete="off" required />
+        <input type="password" name="password" placeholder="Şifre" autocomplete="off" required />
+        <button type="submit">Giriş</button>
+    </form>
+</body>
+</html>
+
