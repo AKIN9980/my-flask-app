@@ -1,92 +1,47 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8" />
-    <title>Chat - Hacker Tema</title>
-    <style>
-        body {
-            background-color: black;
-            color: #00FF00;
-            font-family: monospace;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-        #chatbox {
-            flex-grow: 1;
-            border: 1px solid #00FF00;
-            margin: 10px;
-            padding: 10px;
-            overflow-y: auto;
-            background-color: #111;
-        }
-        #messageForm {
-            display: flex;
-            margin: 10px;
-        }
-        #msgInput {
-            flex-grow: 1;
-            background-color: #111;
-            border: 1px solid #00FF00;
-            color: #00FF00;
-            font-size: 18px;
-            padding: 10px;
-            outline: none;
-        }
-        button {
-            background-color: #00FF00;
-            border: none;
-            color: black;
-            font-weight: bold;
-            padding: 10px 20px;
-            cursor: pointer;
-            font-size: 18px;
-        }
-        p.admin {
-            color: red;
-            font-weight: bold;
-        }
-    </style>
-    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<meta charset="UTF-8" />
+<title>Sohbet</title>
+<script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+<style>
+body {
+  background-color: black;
+  color: #00ff00;
+  font-family: monospace;
+}
+</style>
 </head>
 <body>
-    <h2 style="text-align:center;">Hoşgeldin: {{ nickname }}</h2>
-    <div id="chatbox"></div>
-    <form id="messageForm">
-        <input type="text" id="msgInput" autocomplete="off" placeholder="Mesajınızı yazın..." required />
-        <button type="submit">Gönder</button>
-    </form>
+<h3>Hoşgeldin, {{ nickname }} {% if admin %}(Admin){% endif %}</h3>
+<div id="chat" style="height:400px; overflow-y:scroll; border:1px solid green; padding:10px;">
+    {% for msg in messages %}
+        <div>{{ msg }}</div>
+    {% endfor %}
+</div>
+<input id="msg" autocomplete="off" /><button onclick="sendMessage()">Gönder</button>
 
-    <script>
-        const socket = io();
-        const chatbox = document.getElementById('chatbox');
-        const form = document.getElementById('messageForm');
-        const msgInput = document.getElementById('msgInput');
-        const nickname = "{{ nickname }}";
-        const isAdmin = {{ 'true' if admin else 'false' }};
+<script>
+const socket = io();
 
-        socket.on('connect', () => {
-            socket.emit('join', {});
-        });
+socket.emit('join', {nickname: "{{ nickname }}"});
 
-        socket.on('message', data => {
-            const p = document.createElement('p');
-            p.textContent = data.msg;
-            if (data.admin) p.classList.add('admin');
-            chatbox.appendChild(p);
-            chatbox.scrollTop = chatbox.scrollHeight;
-        });
+socket.on('message', data => {
+    const chat = document.getElementById('chat');
+    const div = document.createElement('div');
+    div.textContent = data.msg;
+    if (data.admin) div.style.color = "red";
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+});
 
-        form.addEventListener('submit', e => {
-            e.preventDefault();
-            const msg = msgInput.value.trim();
-            if (!msg) return;
-            socket.emit('send_message', { msg });
-            msgInput.value = '';
-        });
-    </script>
+function sendMessage() {
+    const input = document.getElementById('msg');
+    if(input.value.trim() === "") return;
+    socket.emit('message', {msg: input.value});
+    input.value = '';
+}
+</script>
 </body>
 </html>
 
