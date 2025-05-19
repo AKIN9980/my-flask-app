@@ -32,7 +32,7 @@ def save_users(users_db):
 
 @app.route('/')
 def home():
-    return render_template('home.html')  # Burada home.html, giriş/kayıt sayfası
+    return render_template('home.html')
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -189,14 +189,6 @@ def handle_message(data):
     full_msg = f"{nickname}: {text}"
     messages.append(full_msg)
     emit('message', {'msg': full_msg, 'admin': False}, broadcast=True)
-
-@socketio.on('ready-for-voice')
-def ready_for_voice(data):
-    emit('ready-for-voice', data, broadcast=True, include_self=False)
-
-@socketio.on('signal')
-def signal(data):
-    emit('signal', data, broadcast=True, include_self=False)
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)
