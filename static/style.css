@@ -1,40 +1,53 @@
 body {
-  font-family: Arial, sans-serif;
-  background: #121212;
-  color: white;
+  font-family: sans-serif;
   margin: 0;
   padding: 0;
+  background: #1e1e1e;
+  color: white;
+}
+
+#chat-box {
   display: flex;
+  flex-direction: column;
   height: 100vh;
-  justify-content: center;
-  align-items: center;
 }
-#chat {
-  width: 100%;
-  max-width: 600px;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-  max-height: 80vh;
+
+#messages {
+  flex: 1;
   overflow-y: auto;
+  padding: 10px;
 }
-li {
-  padding: 5px 10px;
-  border-bottom: 1px solid #333;
-}
+
 form {
   display: flex;
-}
-input {
-  flex-grow: 1;
+  background: #333;
   padding: 10px;
-  border: none;
 }
+
+input[type="text"] {
+  flex: 1;
+  padding: 10px;
+  background: #222;
+  border: none;
+  color: white;
+}
+
 button {
   padding: 10px;
   background: #444;
-  color: white;
   border: none;
+  color: white;
+}
+
+.nickname-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+input, button {
+  margin-top: 10px;
 }
 

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Nick Seç</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="nickname-box">
+    <h2>Takma adını gir:</h2>
+    <form id="nickname-form">
+      <input type="text" name="nickname" required>
+      <button type="submit">Giriş</button>
+    </form>
+  </div>
+  <script>
+    document.getElementById('nickname-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const form = e.target;
+      const data = new FormData(form);
+      await fetch('/set-nickname', { method: 'POST', body: data });
+      window.location.reload();
+    });
+  </script>
+</body>
+</html>
+
