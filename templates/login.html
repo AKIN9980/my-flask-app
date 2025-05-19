@@ -1,20 +1,19 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Giriş</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <form method="post" action="/">
-    <h2>Giriş / Kayıt</h2>
-    <label>Nickname:</label>
-    <input type="text" name="nickname" required />
-    <label>Şifre:</label>
-    <input type="password" name="password" required />
-    <button type="submit">Giriş Yap / Kayıt Ol</button>
-  </form>
+  <div class="login-container">
+    <form method="post" action="/">
+      <h2>Giriş / Kayıt</h2>
+      <input type="text" name="nickname" placeholder="Nick" required />
+      <input type="password" name="password" placeholder="Şifre" required />
+      <button type="submit">Giriş Yap / Kayıt Ol</button>
+    </form>
+  </div>
 </body>
 </html>
-
