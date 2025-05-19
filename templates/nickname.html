@@ -8,7 +8,7 @@
   <div class="nickname-box">
     <h2>Takma adını gir:</h2>
     <form id="nickname-form">
-      <input type="text" name="nickname" required>
+      <input type="text" name="nickname" required autocomplete="off" minlength="2" maxlength="20">
       <button type="submit">Giriş</button>
     </form>
   </div>
@@ -17,8 +17,12 @@
       e.preventDefault();
       const form = e.target;
       const data = new FormData(form);
-      await fetch('/set-nickname', { method: 'POST', body: data });
-      window.location.reload();
+      const res = await fetch('/set-nickname', { method: 'POST', body: data });
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        alert('Geçerli bir takma ad giriniz.');
+      }
     });
   </script>
 </body>

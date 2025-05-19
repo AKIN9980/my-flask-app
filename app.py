@@ -1,14 +1,17 @@
+import os
 from flask import Flask, render_template, request, session
 from flask_socketio import SocketIO, emit
 from flask_session import Session
 
 app = Flask(__name__)
-app.secret_key = 'gizli-anahtar'
+app.secret_key = 'gizli-anahtar'  # Burası gizli ve uzun olmalı
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
-socketio = SocketIO(app, manage_session=False)
 
-messages = []
+# SocketIO, eventlet ile uyumlu çalışacak şekilde
+socketio = SocketIO(app, manage_session=False, async_mode='eventlet')
+
+messages = []  # Tüm mesajlar burada tutuluyor (basit demo için, prod’da db gerekir)
 
 @app.route('/')
 def index():
@@ -26,6 +29,7 @@ def set_nickname():
 
 @socketio.on('connect')
 def on_connect():
+    # Bağlanan kişiye tüm mesajları yolla
     emit('load_messages', messages)
 
 @socketio.on('send_message')
@@ -38,5 +42,6 @@ def handle_message(data):
     emit('receive_message', msg, broadcast=True)
 
 if __name__ == '__main__':
-    socketio.run(app)
+    port = int(os.environ.get('PORT', 5000))
+    socketio.run(app, host='0.0.0.0', port=port)
 
