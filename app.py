@@ -1,27 +1,39 @@
-from flask import Flask, render_template, request, make_response
-from flask_socketio import SocketIO, emit
+from flask import Flask, render_template, request, jsonify, session
+from flask_cors import CORS
+from flask_session import Session
 import uuid
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app)
+app.secret_key = 'anonchat_secret'
+app.config['SESSION_TYPE'] = 'filesystem'
+Session(app)
+CORS(app)
 
-# Ana sayfa
+messages = []
+
 @app.route('/')
 def index():
-    nickname = request.cookies.get('nickname')
-    if not nickname:
-        nickname = str(uuid.uuid4())[:8]  # Rastgele 8 karakterlik nick
-        resp = make_response(render_template('index.html', nickname=nickname))
-        resp.set_cookie('nickname', nickname)
-        return resp
-    return render_template('index.html', nickname=nickname)
+    if 'nickname' not in session:
+        session['nickname'] = f"anon-{uuid.uuid4().hex[:6]}"
+    return render_template('index.html', nickname=session['nickname'])
 
-# Yeni mesaj geldiğinde
-@socketio.on('chat message')
-def handle_message(data):
-    emit('chat message', data, broadcast=True)
+@app.route('/send', methods=['POST'])
+def send():
+    data = request.json
+    nickname = session.get('nickname', 'anon')
+    msg = data.get('message', '').strip()
+    if msg:
+        messages.append({"nick": nickname, "msg": msg})
+    return jsonify(success=True)
+
+@app.route('/messages')
+def get_messages():
+    return jsonify(messages)
 
 if __name__ == '__main__':
-    socketio.run(app)
+    app.run(debug=True)
 
+--- requirements.txt ---
+flask
+flask-cors
+flask-session
