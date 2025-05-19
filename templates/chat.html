@@ -1,53 +1,54 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-  <title>Sohbet</title>
-  <link rel="stylesheet" href="/static/style.css">
+    <meta charset="UTF-8" />
+    <title>Sohbet</title>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 </head>
 <body>
-  <div id="chat-box">
-    <div id="messages"></div>
-    <form id="msg-form">
-      <input type="text" id="msg-input" autocomplete="off" required placeholder="Mesaj yaz...">
-      <button type="submit">Gönder</button>
-    </form>
-  </div>
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-  <script>
-    const socket = io();
+    <h3>Hoşgeldin, {{ nickname }}</h3>
+    <div id="chat"></div>
+    <input type="text" id="msg" autocomplete="off" placeholder="Mesajınızı yazın..." />
+    <button onclick="sendMessage()">Gönder</button>
 
-    const form = document.getElementById('msg-form');
-    const input = document.getElementById('msg-input');
-    const messagesDiv = document.getElementById('messages');
+    <script>
+        const socket = io();
 
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      if(input.value.trim() === '') return;
-      socket.emit('send_message', { text: input.value });
-      input.value = '';
-    });
+        socket.on('connect', () => {
+            console.log('Bağlandı.');
+        });
 
-    socket.on('receive_message', msg => {
-      addMessage(msg);
-    });
+        socket.on('load_messages', (msgs) => {
+            const chat = document.getElementById('chat');
+            chat.innerHTML = '';
+            msgs.forEach(m => {
+                const p = document.createElement('p');
+                p.textContent = m.nickname + ': ' + m.text;
+                chat.appendChild(p);
+            });
+        });
 
-    socket.on('load_messages', msgs => {
-      messagesDiv.innerHTML = '';
-      msgs.forEach(addMessage);
-      scrollToBottom();
-    });
+        socket.on('receive_message', (msg) => {
+            const chat = document.getElementById('chat');
+            const p = document.createElement('p');
+            if(msg.nickname === 'Sistem'){
+                p.style.color = 'red';
+            } else if(msg.nickname === 'Admin'){
+                p.style.color = 'blue';
+                p.style.fontWeight = 'bold';
+            }
+            p.textContent = msg.nickname + ': ' + msg.text;
+            chat.appendChild(p);
+            chat.scrollTop = chat.scrollHeight;
+        });
 
-    function addMessage(msg) {
-      const div = document.createElement('div');
-      div.textContent = `${msg.nickname}: ${msg.text}`;
-      messagesDiv.appendChild(div);
-      scrollToBottom();
-    }
-
-    function scrollToBottom() {
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-  </script>
+        function sendMessage(){
+            const input = document.getElementById('msg');
+            if(input.value.trim() === '') return;
+            socket.emit('send_message', {text: input.value});
+            input.value = '';
+        }
+    </script>
 </body>
 </html>
 
