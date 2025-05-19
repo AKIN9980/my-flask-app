@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8" />
-    <title>Admin Girişi</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Girişi</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <form action="/chat" method="get">
     <h2>Admin Girişi</h2>
-    <form action="/chat" method="get">
-        <input type="hidden" name="nickname" value="admin" />
-        <input type="hidden" name="admin" value="1" />
-        <input type="password" name="password" placeholder="Şifre" required />
-        <button type="submit">Giriş Yap</button>
-    </form>
+    <input type="hidden" name="nickname" value="admin" />
+    <input type="hidden" name="admin" value="1" />
+    <input type="password" name="password" placeholder="Şifre" required />
+    <button type="submit">Giriş Yap</button>
     <a href="/">Geri Dön</a>
+  </form>
 </body>
 </html>
 

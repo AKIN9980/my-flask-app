@@ -2,23 +2,25 @@ body {
   background-color: #121212;
   color: #eee;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  margin: 0; padding: 0;
+  margin: 0;
+  padding: 0;
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
 }
 
-.login-container, .chat-container {
+.login-container, .chat-container, form {
   background: #1e1e1e;
   padding: 20px;
   border-radius: 8px;
   width: 90vw;
   max-width: 480px;
   box-shadow: 0 0 10px #000;
+  box-sizing: border-box;
 }
 
-input[type="text"], input[type="password"], #messageInput {
+input[type="text"], input[type="password"], #messageInput, #msg {
   width: 100%;
   padding: 12px;
   margin: 8px 0 16px;
@@ -27,6 +29,7 @@ input[type="text"], input[type="password"], #messageInput {
   background: #333;
   color: #eee;
   font-size: 16px;
+  box-sizing: border-box;
 }
 
 button {
@@ -37,10 +40,19 @@ button {
   font-size: 16px;
   border-radius: 5px;
   cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 button:hover {
   background-color: #005f99;
+}
+
+a {
+  color: #aaa;
+  display: block;
+  text-align: center;
+  margin-top: 15px;
 }
 
 #error {
@@ -48,7 +60,7 @@ button:hover {
   margin-bottom: 15px;
 }
 
-#messages {
+#messages, #chat {
   height: 400px;
   overflow-y: auto;
   background: #222;
@@ -56,5 +68,23 @@ button:hover {
   border-radius: 5px;
   margin-bottom: 10px;
   font-size: 15px;
+  color: #0f0;
+  border: 1px solid #0f0;
+}
+
+.admin {
+  color: #f00;
+  font-weight: bold;
+}
+
+@media (max-width: 600px) {
+  h2 {
+    font-size: 18px;
+  }
+
+  input, button {
+    font-size: 14px;
+    padding: 10px;
+  }
 }
 
