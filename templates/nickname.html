@@ -1,21 +1,56 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8" />
-    <title>Nickname Seçimi</title>
+  <meta charset="UTF-8" />
+  <title>Nickname Seç</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #eee;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    #form {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #aaa;
+      text-align: center;
+    }
+    input, button {
+      padding: 10px;
+      margin-top: 10px;
+      font-size: 1em;
+    }
+  </style>
 </head>
 <body>
-    <h2>Nickname Seçiniz</h2>
-    {% if error %}
-        <p style="color:red;">{{ error }}</p>
-    {% endif %}
-    <form method="post">
-        <input type="text" name="nickname" placeholder="Nickname" required />
-        <br/>
-        <input type="password" name="password" placeholder="Admin Şifresi (varsa)" />
-        <br/>
-        <button type="submit">Giriş</button>
-    </form>
+  <div id="form">
+    <h2>Takma Adınızı Girin</h2>
+    <input type="text" id="nickname" placeholder="Nickname" />
+    <br />
+    <button onclick="joinChat()">Giriş Yap</button>
+  </div>
+
+  <script>
+    // Eğer localStorage'da nickname varsa direkt chat sayfasına git
+    const storedNick = localStorage.getItem('nickname');
+    if(storedNick){
+      window.location.href = '/chat?nickname=' + encodeURIComponent(storedNick);
+    }
+
+    function joinChat(){
+      const nick = document.getElementById('nickname').value.trim();
+      if(nick === ''){
+        alert('Lütfen bir takma ad girin.');
+        return;
+      }
+      localStorage.setItem('nickname', nick);
+      window.location.href = '/chat?nickname=' + encodeURIComponent(nick);
+    }
+  </script>
 </body>
 </html>
 

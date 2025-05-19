@@ -4,6 +4,57 @@
     <meta charset="UTF-8" />
     <title>Sohbet</title>
     <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: #f0f2f5;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      h3 {
+        background-color: #4267B2;
+        color: white;
+        margin: 0;
+        padding: 15px;
+        text-align: center;
+      }
+      #chat {
+        flex: 1;
+        padding: 15px;
+        overflow-y: auto;
+        background-color: white;
+        border: 1px solid #ccc;
+        margin: 10px;
+        border-radius: 5px;
+      }
+      #msg {
+        width: calc(100% - 90px);
+        padding: 10px;
+        font-size: 1em;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        margin-left: 10px;
+      }
+      button {
+        padding: 10px 15px;
+        font-size: 1em;
+        border-radius: 5px;
+        border: none;
+        background-color: #4267B2;
+        color: white;
+        cursor: pointer;
+        margin-right: 10px;
+      }
+      button:hover {
+        background-color: #365899;
+      }
+      p {
+        margin: 5px 0;
+      }
+    </style>
 </head>
 <body>
     <h3>Hoşgeldin, {{ nickname }}</h3>
@@ -13,9 +64,32 @@
 
     <script>
         const socket = io();
+        const nickname = "{{ nickname }}";
 
         socket.on('connect', () => {
-            console.log('Bağlandı.');
+            socket.emit('join', {nickname});
+        });
+
+        socket.on('nickname_taken', () => {
+            alert('Bu takma ad zaten kullanılıyor. Lütfen başka bir tane seçin.');
+            localStorage.removeItem('nickname');
+            window.location.href = '/';
+        });
+
+        socket.on('request_password', () => {
+            const pwd = prompt('Admin parolasını girin:');
+            if(!pwd){
+                localStorage.removeItem('nickname');
+                window.location.href = '/';
+                return;
+            }
+            socket.emit('admin_auth', {nickname, password: pwd});
+        });
+
+        socket.on('auth_failed', () => {
+            alert('Admin şifresi yanlış.');
+            localStorage.removeItem('nickname');
+            window.location.href = '/';
         });
 
         socket.on('load_messages', (msgs) => {
@@ -40,6 +114,19 @@
             p.textContent = msg.nickname + ': ' + msg.text;
             chat.appendChild(p);
             chat.scrollTop = chat.scrollHeight;
+        });
+
+        socket.on('clear_chat', () => {
+            document.getElementById('chat').innerHTML = '';
+        });
+
+        socket.on('muted', (data) => {
+            alert(data.msg);
+        });
+
+        socket.on('disconnect', () => {
+          localStorage.removeItem('nickname'); // Çıkışta temizle
+          window.location.href = '/';
         });
 
         function sendMessage(){
