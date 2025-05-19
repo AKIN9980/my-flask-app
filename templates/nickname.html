@@ -2,25 +2,20 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8" />
-    <title>Nickname Gir</title>
+    <title>Anonim Sohbet - Giriş</title>
 </head>
 <body>
-    <h2>Nickname Giriniz</h2>
-    <form action="/chat" method="get" id="nicknameForm">
-        <input type="text" name="nickname" placeholder="Nickname" required />
+    <h2>Anonim Sohbet Giriş</h2>
+    <form action="/login" method="POST">
+        <label for="nickname">Takma Adınız:</label>
+        <input type="text" id="nickname" name="nickname" required />
+        <br/>
+        <label for="password">Şifre (yeni kullanıcılar için):</label>
+        <input type="password" id="password" name="password" />
+        <br/>
         <button type="submit">Giriş</button>
     </form>
-
-    <script>
-        const form = document.getElementById('nicknameForm');
-        form.addEventListener('submit', function(e) {
-            const nick = form.nickname.value.trim();
-            if (nick.toLowerCase() === 'admin') {
-                e.preventDefault();
-                window.location.href = `/admin_login`;
-            }
-        });
-    </script>
+    <p>Admin girişi için takma ad "admin" ve doğru şifreyi girin.</p>
 </body>
 </html>
 

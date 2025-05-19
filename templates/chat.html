@@ -1,47 +1,58 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8" />
-<title>Sohbet</title>
-<script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
-<style>
-body {
-  background-color: black;
-  color: #00ff00;
-  font-family: monospace;
-}
-</style>
+    <meta charset="UTF-8" />
+    <title>Anonim Sohbet</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #000; color: #0f0; }
+        #chat { height: 400px; overflow-y: auto; border: 2px solid #0f0; padding: 10px; width: 80vw; max-width: 600px; margin-bottom: 10px; background: #111; }
+        #msg { width: 80vw; max-width: 600px; padding: 8px; background: #222; color: #0f0; border: 1px solid #0f0; }
+        button { padding: 8px 15px; background-color: #0f0; border: none; color: #000; cursor: pointer; }
+        .admin { color: #f00; font-weight: bold; }
+    </style>
 </head>
 <body>
-<h3>Hoşgeldin, {{ nickname }} {% if admin %}(Admin){% endif %}</h3>
-<div id="chat" style="height:400px; overflow-y:scroll; border:1px solid green; padding:10px;">
-    {% for msg in messages %}
-        <div>{{ msg }}</div>
-    {% endfor %}
-</div>
-<input id="msg" autocomplete="off" /><button onclick="sendMessage()">Gönder</button>
+    <h2>Anonim Sohbet - Tema: Hacker</h2>
+    <div id="chat"></div>
+    <input type="text" id="msg" placeholder="Mesajınızı yazın ve Enter ile gönderin..." autocomplete="off" autofocus />
+    <button onclick="sendMessage()">Gönder</button>
 
-<script>
-const socket = io();
+    <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+    <script>
+        var socket = io();
 
-socket.emit('join', {nickname: "{{ nickname }}"});
+        socket.on('connect', () => {
+            socket.emit('join', { nickname: "{{ nickname }}" });
+        });
 
-socket.on('message', data => {
-    const chat = document.getElementById('chat');
-    const div = document.createElement('div');
-    div.textContent = data.msg;
-    if (data.admin) div.style.color = "red";
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
-});
+        socket.on('message', function(data) {
+            var chat = document.getElementById('chat');
+            var p = document.createElement('p');
+            p.textContent = data.msg;
+            if (data.admin) p.classList.add('admin');
+            chat.appendChild(p);
+            chat.scrollTop = chat.scrollHeight;
+        });
 
-function sendMessage() {
-    const input = document.getElementById('msg');
-    if(input.value.trim() === "") return;
-    socket.emit('message', {msg: input.value});
-    input.value = '';
-}
-</script>
+        function sendMessage() {
+            var input = document.getElementById('msg');
+            var text = input.value.trim();
+            if (!text) return;
+            socket.emit('message', { msg: text });
+            if (text === "/exit") {
+                socket.disconnect();
+                window.location.href = "/";
+            }
+            input.value = '';
+        }
+
+        document.getElementById('msg').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+                event.preventDefault();
+            }
+        });
+    </script>
 </body>
 </html>
 
