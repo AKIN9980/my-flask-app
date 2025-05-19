@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin Girişi</title>
+<style>
+  body {
+    background-color: #121212;
+    color: #eee;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex; justify-content: center; align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  form {
+    background-color: #222;
+    padding: 20px 30px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px #0f0;
+  }
+  input, button {
+    font-size: 16px;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    border: none;
+  }
+  input {
+    width: 250px;
+  }
+  button {
+    width: 100%;
+    background-color: #0f0;
+    color: #121212;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  button:hover {
+    background-color: #0c0;
+  }
+</style>
+</head>
+<body>
+
+<form action="/chat" method="GET">
+  <input type="hidden" name="nickname" value="Admin" />
+  <label for="password">Admin Şifresi:</label><br/>
+  <input id="password" name="password" type="password" required autocomplete="off" autofocus /><br/>
+  <button type="submit">Giriş</button>
+</form>
+
+</body>
+</html>
+

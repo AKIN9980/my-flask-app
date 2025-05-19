@@ -3,21 +3,92 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Nickname Seç</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<title>Anonim Sohbet - Giriş</title>
+<style>
+  body {
+    background-color: #121212;
+    color: #eee;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex; justify-content: center; align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  form {
+    background-color: #222;
+    padding: 20px 30px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px #0f0;
+  }
+  input, button {
+    font-size: 16px;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    border: none;
+  }
+  input {
+    width: 250px;
+  }
+  button {
+    width: 100%;
+    background-color: #0f0;
+    color: #121212;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  button:hover {
+    background-color: #0c0;
+  }
+</style>
 </head>
 <body>
-<div class="login-container">
-  <h2>Nickname seç</h2>
-  {% if error %}
-    <div class="error">{{ error }}</div>
-  {% endif %}
-  <form method="post">
-    <input type="text" name="nickname" placeholder="Nickname" required autofocus>
-    <input type="password" name="password" placeholder="Admin şifresi (sadece Admin için)">
-    <button type="submit">Giriş</button>
-  </form>
-</div>
+
+<form id="nicknameForm" action="" method="GET">
+  <label for="nickname">Kullanıcı Adı (Nickname):</label><br/>
+  <input id="nickname" name="nickname" required autocomplete="off" autofocus /><br/>
+  
+  <div id="passwordDiv" style="display:none;">
+    <label for="password">Admin Şifresi:</label><br/>
+    <input id="password" name="password" type="password" autocomplete="off" /><br/>
+  </div>
+  
+  <button type="submit">Sohbete Katıl</button>
+</form>
+
+<script>
+  const nicknameInput = document.getElementById('nickname');
+  const passwordDiv = document.getElementById('passwordDiv');
+
+  nicknameInput.addEventListener('input', () => {
+    if (nicknameInput.value.trim().toLowerCase() === 'admin') {
+      passwordDiv.style.display = 'block';
+      document.getElementById('password').required = true;
+    } else {
+      passwordDiv.style.display = 'none';
+      document.getElementById('password').required = false;
+      document.getElementById('password').value = '';
+    }
+  });
+
+  document.getElementById('nicknameForm').onsubmit = function(e) {
+    const nick = nicknameInput.value.trim();
+    if (!nick) {
+      e.preventDefault();
+      alert('Nickname boş olamaz.');
+      return false;
+    }
+    if (nick.toLowerCase() === 'admin') {
+      const pass = document.getElementById('password').value;
+      if (!pass) {
+        e.preventDefault();
+        alert('Admin şifresi gerekli.');
+        return false;
+      }
+    }
+    return true;
+  };
+</script>
+
 </body>
 </html>
 
