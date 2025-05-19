@@ -6,87 +6,103 @@
 <title>Anonim Sohbet</title>
 <style>
   body {
-    background-color: #121212;
-    color: #eee;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column;
+    background: #000;
+    color: #0f0;
+    font-family: monospace;
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
   #chat {
-    flex-grow: 1;
+    flex: 1;
     overflow-y: auto;
     padding: 10px;
     border-bottom: 2px solid #0f0;
   }
-  #chat p {
-    margin: 5px 0;
+  #chat div {
+    margin-bottom: 8px;
   }
-  #chat p span.nickname {
+  #chat .admin {
+    color: #f00;
     font-weight: bold;
+  }
+  form {
+    display: flex;
+    border-top: 2px solid #0f0;
+  }
+  input[type="text"] {
+    flex: 1;
+    font-size: 1.2rem;
+    padding: 10px;
+    border: none;
+    background: #111;
     color: #0f0;
   }
-  #messageInput {
-    background-color: #222;
+  button {
+    font-size: 1.2rem;
+    padding: 10px 20px;
+    background: #0f0;
+    color: #000;
     border: none;
-    color: #eee;
-    font-size: 16px;
-    padding: 15px;
-    width: 100%;
-    box-sizing: border-box;
-    outline: none;
+    cursor: pointer;
   }
 </style>
-<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 </head>
 <body>
 
 <div id="chat"></div>
-<input id="messageInput" type="text" autocomplete="off" placeholder="Mesaj yaz ve Enter ile gönder..." autofocus />
 
+<form id="msgForm">
+  <input id="msgInput" autocomplete="off" placeholder="Mesajınızı yazın ve Enter'a basın..." />
+  <button type="button" id="sendBtn">Gönder</button>
+</form>
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.min.js"></script>
 <script>
   const socket = io();
-  const chatDiv = document.getElementById('chat');
-  const input = document.getElementById('messageInput');
-  const nickname = "{{ nickname|e }}";
 
-  // Mesajları göstermek için
-  function addMessage(nick, text) {
-    const p = document.createElement('p');
-    p.innerHTML = '<span class="nickname">' + nick + ':</span> ' + text;
-    chatDiv.appendChild(p);
-    chatDiv.scrollTop = chatDiv.scrollHeight;
+  const chat = document.getElementById('chat');
+  const form = document.getElementById('msgForm');
+  const input = document.getElementById('msgInput');
+  const sendBtn = document.getElementById('sendBtn');
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const nickname = urlParams.get('nickname') || 'Anonim';
+  const isAdmin = urlParams.get('admin') === '1';
+
+  function addMessage(msg, fromAdmin=false) {
+    const div = document.createElement('div');
+    div.textContent = msg;
+    if (fromAdmin) div.classList.add('admin');
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
   }
 
-  // Önceden gelen mesajları yükle
-  const messages = {{ messages|tojson }};
-  messages.forEach(m => addMessage(m.nickname, m.text));
-
-  // Mesaj geldiğinde
-  socket.on('receive_message', data => {
-    addMessage(data.nickname, data.text);
+  socket.on('connect', () => {
+    socket.emit('join', { nickname, isAdmin });
   });
 
-  // Sohbet temizlendiğinde
-  socket.on('chat_cleared', () => {
-    chatDiv.innerHTML = '';
+  socket.on('message', data => {
+    addMessage(data.msg, data.admin);
   });
 
-  // Exit komutu ile sohbetten çıkış
-  socket.on('exit_chat', () => {
-    alert('Sohbetten çıktınız.');
-    window.location.href = "/";
+  socket.on('clear', () => {
+    chat.innerHTML = '';
   });
 
-  // Mesaj gönder
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      const text = input.value.trim();
-      if (text) {
-        socket.emit('send_message', { nickname: nickname, text: text });
-        input.value = '';
-      }
-    }
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    sendMessage();
   });
+  sendBtn.addEventListener('click', sendMessage);
+
+  function sendMessage() {
+    const text = input.value.trim();
+    if (!text) return;
+    socket.emit('message', { msg: text });
+    input.value = '';
+  }
 </script>
 
 </body>

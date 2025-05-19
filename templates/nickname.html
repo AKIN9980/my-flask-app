@@ -3,90 +3,62 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Anonim Sohbet - Giriş</title>
+<title>Nickname Seçimi</title>
 <style>
   body {
-    background-color: #121212;
-    color: #eee;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    display: flex; justify-content: center; align-items: center;
+    background: #000;
+    color: #0f0;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     height: 100vh;
     margin: 0;
   }
-  form {
-    background-color: #222;
-    padding: 20px 30px;
-    border-radius: 10px;
-    box-shadow: 0 0 15px #0f0;
-  }
   input, button {
-    font-size: 16px;
+    font-size: 1.2rem;
     padding: 10px;
-    margin-top: 10px;
+    margin: 5px;
     border-radius: 5px;
     border: none;
   }
   input {
-    width: 250px;
+    width: 300px;
+    background: #111;
+    color: #0f0;
   }
   button {
-    width: 100%;
-    background-color: #0f0;
-    color: #121212;
-    cursor: pointer;
+    background: #0f0;
+    color: #000;
     font-weight: bold;
-  }
-  button:hover {
-    background-color: #0c0;
+    cursor: pointer;
   }
 </style>
 </head>
 <body>
 
-<form id="nicknameForm" action="" method="GET">
-  <label for="nickname">Kullanıcı Adı (Nickname):</label><br/>
-  <input id="nickname" name="nickname" required autocomplete="off" autofocus /><br/>
-  
-  <div id="passwordDiv" style="display:none;">
-    <label for="password">Admin Şifresi:</label><br/>
-    <input id="password" name="password" type="password" autocomplete="off" /><br/>
-  </div>
-  
-  <button type="submit">Sohbete Katıl</button>
+<h1>Nickname Seç</h1>
+<form id="nicknameForm">
+  <input id="nickname" name="nickname" placeholder="Nickname" required autocomplete="off" autofocus />
+  <button type="submit">Giriş</button>
 </form>
 
 <script>
-  const nicknameInput = document.getElementById('nickname');
-  const passwordDiv = document.getElementById('passwordDiv');
-
-  nicknameInput.addEventListener('input', () => {
-    if (nicknameInput.value.trim().toLowerCase() === 'admin') {
-      passwordDiv.style.display = 'block';
-      document.getElementById('password').required = true;
-    } else {
-      passwordDiv.style.display = 'none';
-      document.getElementById('password').required = false;
-      document.getElementById('password').value = '';
-    }
-  });
-
-  document.getElementById('nicknameForm').onsubmit = function(e) {
-    const nick = nicknameInput.value.trim();
+  const form = document.getElementById('nicknameForm');
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const nick = form.nickname.value.trim();
     if (!nick) {
-      e.preventDefault();
-      alert('Nickname boş olamaz.');
-      return false;
+      alert('Nickname boş olamaz!');
+      return;
     }
     if (nick.toLowerCase() === 'admin') {
-      const pass = document.getElementById('password').value;
-      if (!pass) {
-        e.preventDefault();
-        alert('Admin şifresi gerekli.');
-        return false;
-      }
+      window.location.href = '/admin_login';
+    } else {
+      window.location.href = `/chat?nickname=${encodeURIComponent(nick)}`;
     }
-    return true;
-  };
+  });
 </script>
 
 </body>

@@ -6,49 +6,52 @@
 <title>Admin Girişi</title>
 <style>
   body {
-    background-color: #121212;
-    color: #eee;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    display: flex; justify-content: center; align-items: center;
+    background: #000;
+    color: #0f0;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     height: 100vh;
     margin: 0;
   }
-  form {
-    background-color: #222;
-    padding: 20px 30px;
-    border-radius: 10px;
-    box-shadow: 0 0 15px #0f0;
-  }
   input, button {
-    font-size: 16px;
+    font-size: 1.2rem;
     padding: 10px;
-    margin-top: 10px;
+    margin: 5px;
     border-radius: 5px;
     border: none;
   }
   input {
-    width: 250px;
+    width: 300px;
+    background: #111;
+    color: #0f0;
   }
   button {
-    width: 100%;
-    background-color: #0f0;
-    color: #121212;
-    cursor: pointer;
+    background: #0f0;
+    color: #000;
     font-weight: bold;
-  }
-  button:hover {
-    background-color: #0c0;
+    cursor: pointer;
   }
 </style>
 </head>
 <body>
 
-<form action="/chat" method="GET">
+<h1>Admin Şifresi</h1>
+<form id="adminForm" method="GET" action="/chat">
   <input type="hidden" name="nickname" value="Admin" />
-  <label for="password">Admin Şifresi:</label><br/>
-  <input id="password" name="password" type="password" required autocomplete="off" autofocus /><br/>
+  <input type="password" name="password" placeholder="Şifre" required autocomplete="off" />
   <button type="submit">Giriş</button>
 </form>
+
+<script>
+  const form = document.getElementById('adminForm');
+  form.addEventListener('submit', () => {
+    // Şifre gönderilirken admin=1 parametresi ekle
+    form.action = `/chat?admin=1`;
+  });
+</script>
 
 </body>
 </html>

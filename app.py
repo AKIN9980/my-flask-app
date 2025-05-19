@@ -1,18 +1,17 @@
 from flask import Flask, render_template, request, redirect, url_for
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, disconnect
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
+app.config['SECRET_KEY'] = 'gizlisifre'
 socketio = SocketIO(app)
 
 messages = []
-banned_users = set()
-muted_users = set()
+users = {}  # sid -> nickname
+banned = set()
+muted = set()
+ips = {}  # sid -> ip
 
-ADMIN_NICKNAME = "Admin"
-ADMIN_PASSWORD = "sifre123"
-
-admin_sessions = {}  # ip -> admin yetkisi
+ADMIN_PASSWORD = "9980"
 
 @app.route('/')
 def nickname():
@@ -24,101 +23,47 @@ def admin_login():
 
 @app.route('/chat')
 def chat():
-    nickname = request.args.get('nickname', '').strip()
-    password = request.args.get('password', '')
+    nickname = request.args.get('nickname')
+    admin_flag = request.args.get('admin')
+    password = request.args.get('password')
 
     if not nickname:
         return redirect(url_for('nickname'))
 
-    if nickname == ADMIN_NICKNAME:
-        if password != ADMIN_PASSWORD:
+    if nickname.lower() == 'admin':
+        if admin_flag != '1' or password != ADMIN_PASSWORD:
             return redirect(url_for('admin_login'))
-        admin_sessions[request.remote_addr] = True
-    else:
-        admin_sessions.pop(request.remote_addr, None)
 
-    if nickname in banned_users:
-        return "Banlandınız.", 403
+    if nickname in banned:
+        return "Yasaklısınız.", 403
 
-    return render_template('chat.html', nickname=nickname, messages=messages)
+    return render_template('chat.html', nickname=nickname, admin=(nickname.lower() == 'admin'))
 
+@socketio.on('join')
+def on_join(data):
+    sid = request.sid
+    nick = data.get('nickname')
+    is_admin = data.get('isAdmin', False)
 
-@socketio.on('send_message')
-def handle_send_message(data):
-    text = data.get('text', '').strip()
-    nickname = data.get('nickname')
-    user_ip = request.remote_addr
+    users[sid] = nick
+    ips[sid] = request.remote_addr
 
-    if not text:
-        return
+    msg = f"{nick} katıldı."
+    messages.append(msg)
+    emit('message', {'msg': msg, 'admin': False}, broadcast=True)
 
-    if nickname in banned_users:
-        emit('receive_message', {'nickname': 'Sistem', 'text': 'Banlandığınız için mesaj gönderemezsiniz.'}, to=request.sid)
-        return
+@socketio.on('disconnect')
+def on_disconnect():
+    sid = request.sid
+    nick = users.get(sid)
+    if nick:
+        msg = f"{nick} ayrıldı."
+        messages.append(msg)
+        emit('message', {'msg': msg, 'admin': False}, broadcast=True)
+        users.pop(sid)
+        ips.pop(sid, None)
+        muted.discard(nick)
+        banned.discard(nick)
 
-    if nickname in muted_users:
-        emit('receive_message', {'nickname': 'Sistem', 'text': 'Sessize alındınız, mesaj gönderemezsiniz.'}, to=request.sid)
-        return
-
-    is_admin = admin_sessions.get(user_ip, False)
-
-    if text.startswith('/'):
-        parts = text.split()
-        cmd = parts[0].lower()
-
-        if is_admin:
-            # Admin komutları
-            if cmd == '/reset':
-                messages.clear()
-                emit('chat_cleared', broadcast=True)
-                return
-
-            elif cmd == '/exit':
-                emit('exit_chat', to=request.sid)
-                return
-
-            elif cmd == '/ip':
-                emit('receive_message', {'nickname': 'Sistem', 'text': f'Admin IP: {user_ip}'}, to=request.sid)
-                return
-
-            elif cmd == '/ban' and len(parts) == 2:
-                target = parts[1]
-                banned_users.add(target)
-                emit('receive_message', {'nickname': 'Sistem', 'text': f'{target} banlandı.'}, broadcast=True)
-                return
-
-            elif cmd == '/mute' and len(parts) == 2:
-                target = parts[1]
-                muted_users.add(target)
-                emit('receive_message', {'nickname': 'Sistem', 'text': f'{target} sessize alındı.'}, broadcast=True)
-                return
-
-            elif cmd in ['/help', '/?']:
-                emit('receive_message', {'nickname': 'Sistem', 'text': 'Admin komutları: /reset, /exit, /ip, /ban <nick>, /mute <nick>, /help'}, to=request.sid)
-                return
-
-            else:
-                emit('receive_message', {'nickname': 'Sistem', 'text': 'Bilinmeyen komut. /help yazınız.'}, to=request.sid)
-                return
-
-        else:
-            # Normal kullanıcı komutları
-            if cmd in ['/help', '/?']:
-                emit('receive_message', {'nickname': 'Sistem', 'text': 'Kullanılabilir komutlar: /help, /exit'}, to=request.sid)
-                return
-
-            elif cmd == '/exit':
-                emit('exit_chat', to=request.sid)
-                return
-
-            else:
-                emit('receive_message', {'nickname': 'Sistem', 'text': 'Bilinmeyen komut. /help yazınız.'}, to=request.sid)
-                return
-
-    # Normal mesaj
-    messages.append({'nickname': nickname, 'text': text})
-    emit('receive_message', {'nickname': nickname, 'text': text}, broadcast=True)
-
-if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000)
+@socketio.on
 
