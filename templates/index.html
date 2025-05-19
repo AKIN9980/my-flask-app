@@ -1,93 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anon Chat</title>
-    <link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8">
+  <title>Sohbet</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Anon Chat</h1>
-        <p class="nick">Senin adın: <strong>{{ nickname }}</strong></p>
-        <div id="chat-box"></div>
-        <input type="text" id="msg-input" placeholder="Bir şeyler yaz...">
-        <button onclick="sendMessage()">Gönder</button>
-    </div>
-    <script>
-        const nickname = "{{ nickname }}";
-    </script>
-    <script src="/static/script.js"></script>
+  <div id="chat">
+    <ul id="messages"></ul>
+    <form id="form">
+      <input id="input" autocomplete="off" placeholder="Mesaj yaz..." /><button>Gönder</button>
+    </form>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="/static/script.js"></script>
 </body>
 </html>
-
---- static/style.css ---
-body {
-    font-family: sans-serif;
-    background-color: var(--bg);
-    color: var(--fg);
-    margin: 0;
-    padding: 0;
-}
-:root {
-    color-scheme: light dark;
-    --bg: white;
-    --fg: black;
-}
-@media (prefers-color-scheme: dark) {
-    :root {
-        --bg: #121212;
-        --fg: #e0e0e0;
-    }
-}
-.container {
-    max-width: 600px;
-    margin: auto;
-    padding: 1rem;
-}
-#chat-box {
-    border: 1px solid #ccc;
-    height: 300px;
-    overflow-y: auto;
-    margin-bottom: 1rem;
-    padding: 0.5rem;
-}
-.nick {
-    font-size: 0.9rem;
-    color: gray;
-}
-
---- static/script.js ---
-function fetchMessages() {
-    fetch('/messages')
-        .then(res => res.json())
-        .then(data => {
-            const chatBox = document.getElementById('chat-box');
-            chatBox.innerHTML = '';
-            data.forEach(m => {
-                const div = document.createElement('div');
-                div.textContent = `${m.nick}: ${m.msg}`;
-                chatBox.appendChild(div);
-            });
-            chatBox.scrollTop = chatBox.scrollHeight;
-        });
-}
-
-function sendMessage() {
-    const input = document.getElementById('msg-input');
-    const message = input.value;
-    if (!message) return;
-
-    fetch('/send', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message})
-    }).then(() => {
-        input.value = '';
-        fetchMessages();
-    });
-}
-
-setInterval(fetchMessages, 1000);
-window.onload = fetchMessages;
 
