@@ -31,7 +31,7 @@
         #msg {
             width: 90vw;
             max-width: 700px;
-            margin: 10px auto 20px;
+            margin: 10px auto 5px;
             padding: 10px;
             background: #222;
             color: #0f0;
@@ -39,11 +39,11 @@
             box-sizing: border-box;
             display: block;
         }
-        button {
+        button, #btnMic {
             display: block;
             width: 90vw;
             max-width: 700px;
-            margin: 0 auto 10px;
+            margin: 5px auto 10px;
             padding: 10px;
             background-color: #0f0;
             border: none;
@@ -56,6 +56,11 @@
             color: #f00;
             font-weight: bold;
         }
+        audio {
+            display: block;
+            margin: 5px auto;
+            max-width: 90vw;
+        }
     </style>
 </head>
 <body>
@@ -63,7 +68,7 @@
     <div id="chat"></div>
     <input type="text" id="msg" placeholder="Mesajınızı yazın ve Enter ile gönderin..." autocomplete="off" autofocus />
     <button onclick="sendMessage()">Gönder</button>
-    <button id="voiceBtn">Mikrofonu Aç</button>
+    <button id="btnMic">Mikrofonu Aç</button>
 
     <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
     <script>
@@ -72,13 +77,12 @@
         function adjustChatHeight() {
             const headerHeight = document.querySelector('h2').offsetHeight;
             const inputHeight = document.getElementById('msg').offsetHeight;
-            const buttonHeight = document.querySelector('button').offsetHeight * 2 + 10; // iki buton ve margin
-            const totalUsedHeight = headerHeight + inputHeight + buttonHeight + 70;
+            const buttonHeight = document.querySelector('button').offsetHeight;
+            const micBtnHeight = document.getElementById('btnMic').offsetHeight;
+            const totalUsedHeight = headerHeight + inputHeight + buttonHeight + micBtnHeight + 90;
             const newHeight = window.innerHeight - totalUsedHeight;
-            const chatDiv = document.getElementById('chat');
-            chatDiv.style.height = newHeight + 'px';
+            document.getElementById('chat').style.height = newHeight + 'px';
         }
-
         window.addEventListener('resize', adjustChatHeight);
         window.addEventListener('load', adjustChatHeight);
 
@@ -114,28 +118,106 @@
             }
         });
 
-        // Voice chat için:
-        let micOn = false;
-        let mediaStream = null;
-        const voiceBtn = document.getElementById('voiceBtn');
+        // --- Mikrofon & WebRTC Ses iletimi ---
+        const btnMic = document.getElementById('btnMic');
+        let localStream = null;
+        let peers = {}; // sid -> RTCPeerConnection
 
-        voiceBtn.addEventListener('click', async () => {
-            if (!micOn) {
-                try {
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    // Burada mikrofon aktif, istersen ses dinleyicilere aktarılabilir.
-                    voiceBtn.textContent = "Mikrofonu Kapat";
-                    micOn = true;
-                } catch (err) {
-                    alert("Mikrofon açılamadı: " + err.message);
+        btnMic.onclick = async () => {
+            if(localStream){
+                // Mikrofonu kapat
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+                btnMic.textContent = "Mikrofonu Aç";
+
+                // Peer bağlantılarını kapat
+                for(let sid in peers){
+                    peers[sid].close();
+                    delete peers[sid];
+                    const audio = document.getElementById('audio-' + sid);
+                    if(audio) audio.remove();
                 }
             } else {
-                if (mediaStream) {
-                    mediaStream.getTracks().forEach(track => track.stop());
-                    mediaStream = null;
+                // Mikrofonu aç
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    btnMic.textContent = "Mikrofonu Kapat";
+
+                    // Var olan peerları temizle
+                    for(let sid in peers){
+                        peers[sid].close();
+                        delete peers[sid];
+                        const audio = document.getElementById('audio-' + sid);
+                        if(audio) audio.remove();
+                    }
+
+                    // Diğer kullanıcılara sinyal gönder (peer bağlantısı için hazır)
+                    socket.emit('ready-for-voice');
+                } catch(err){
+                    alert("Mikrofon erişimi reddedildi veya hata oluştu.");
+                    console.error(err);
                 }
-                voiceBtn.textContent = "Mikrofonu Aç";
-                micOn = false;
+            }
+        };
+
+        async function startPeerConnection(peerId, isCaller) {
+            const pc = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+
+            peers[peerId] = pc;
+
+            if(localStream){
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            }
+
+            pc.onicecandidate = e => {
+                if(e.candidate){
+                    socket.emit('signal', { target: peerId, signal: { candidate: e.candidate } });
+                }
+            };
+
+            pc.ontrack = e => {
+                let audio = document.getElementById('audio-' + peerId);
+                if(!audio){
+                    audio = document.createElement('audio');
+                    audio.id = 'audio-' + peerId;
+                    audio.autoplay = true;
+                    document.body.appendChild(audio);
+                }
+                audio.srcObject = e.streams[0];
+            };
+
+            if(isCaller){
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                socket.emit('signal', { target: peerId, signal: pc.localDescription });
+            }
+        }
+
+        socket.on('signal', async data => {
+            const from = data.from;
+            const signal = data.signal;
+
+            if(!peers[from]){
+                await startPeerConnection(from, false);
+            }
+
+            if(signal.type === 'offer'){
+                await peers[from].setRemoteDescription(new RTCSessionDescription(signal));
+                const answer = await peers[from].createAnswer();
+                await peers[from].setLocalDescription(answer);
+                socket.emit('signal', { target: from, signal: peers[from].localDescription });
+            } else if(signal.type === 'answer'){
+                await peers[from].setRemoteDescription(new RTCSessionDescription(signal));
+            } else if(signal.candidate){
+                await peers[from].addIceCandidate(new RTCIceCandidate(signal.candidate));
+            }
+        });
+
+        socket.on('user-joined', data => {
+            if(localStream){
+                startPeerConnection(data.sid, true);
             }
         });
     </script>
