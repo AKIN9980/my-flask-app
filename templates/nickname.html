@@ -2,54 +2,74 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <title>Nickname Seç</title>
+  <title>Takma Ad Seçimi</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background-color: #eee;
+      margin: 0; padding: 0;
+      height: 100vh;
+      background: #121212;
+      color: #eee;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
     }
     #form {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px #aaa;
+      background: #1f1f1f;
+      padding: 30px 40px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px #0f0f0f;
       text-align: center;
+      width: 320px;
     }
-    input, button {
-      padding: 10px;
-      margin-top: 10px;
-      font-size: 1em;
+    h2 {
+      margin-bottom: 20px;
+      font-weight: 600;
+      color: #61dafb;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: #2b2b2b;
+      color: #eee;
+      font-size: 1rem;
+      outline: none;
+      transition: background 0.3s ease;
+    }
+    input:focus {
+      background: #3a3a3a;
+    }
+    button {
+      display: none; /* Buton kaldırıldı */
     }
   </style>
 </head>
 <body>
   <div id="form">
-    <h2>Takma Adınızı Girin</h2>
-    <input type="text" id="nickname" placeholder="Nickname" />
-    <br />
-    <button onclick="joinChat()">Giriş Yap</button>
+    <h2>Takma Adını Gir</h2>
+    <input id="nickname" type="text" placeholder="Takma adınız..." autofocus />
   </div>
 
   <script>
-    // Eğer localStorage'da nickname varsa direkt chat sayfasına git
+    const input = document.getElementById('nickname');
     const storedNick = localStorage.getItem('nickname');
     if(storedNick){
       window.location.href = '/chat?nickname=' + encodeURIComponent(storedNick);
     }
 
-    function joinChat(){
-      const nick = document.getElementById('nickname').value.trim();
-      if(nick === ''){
-        alert('Lütfen bir takma ad girin.');
-        return;
+    input.addEventListener('keydown', e => {
+      if(e.key === 'Enter'){
+        const nick = input.value.trim();
+        if(!nick){
+          alert('Lütfen bir takma ad girin.');
+          return;
+        }
+        localStorage.setItem('nickname', nick);
+        window.location.href = '/chat?nickname=' + encodeURIComponent(nick);
       }
-      localStorage.setItem('nickname', nick);
-      window.location.href = '/chat?nickname=' + encodeURIComponent(nick);
-    }
+    });
   </script>
 </body>
 </html>
