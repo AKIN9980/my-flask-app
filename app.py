@@ -1,194 +1,98 @@
-import json
-import os
-from flask import Flask, render_template, request, redirect, url_for, session
-from flask_socketio import SocketIO, emit, disconnect
+from flask import Flask, render_template, request, redirect, url_for
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'gizlisifre'
-socketio = SocketIO(app, manage_session=False)
-
-USER_DB_FILE = 'users.json'
+socketio = SocketIO(app)
 
 messages = []
-users = {}          # sid -> nickname
-user_ips = {}       # nickname -> ip
-banned_users = set()
-muted_users = set()
+users = {}  # sid -> nickname
+banned = set()
+muted = set()
+ips = {}  # sid -> ip
 
 ADMIN_PASSWORD = "9980"
 
-# Kullanıcı veritabanını oku
-def load_users():
-    if not os.path.exists(USER_DB_FILE):
-        with open(USER_DB_FILE, 'w') as f:
-            json.dump({}, f)
-    with open(USER_DB_FILE, 'r') as f:
-        return json.load(f)
-
-# Kullanıcı veritabanına yaz
-def save_users(users_db):
-    with open(USER_DB_FILE, 'w') as f:
-        json.dump(users_db, f)
-
 @app.route('/')
-def home():
-    return render_template('home.html')
-
-@app.route('/register', methods=['POST'])
-def register():
-    nickname = request.form.get('nickname').strip()
-    password = request.form.get('password').strip()
-
-    if not nickname or not password:
-        return "Nickname ve şifre gerekli.", 400
-
-    if nickname.lower() == 'admin':
-        return "Admin kullanıcı adı kullanılamaz.", 400
-
-    users_db = load_users()
-    if nickname in users_db:
-        return "Bu nickname zaten alınmış.", 400
-
-    users_db[nickname] = password
-    save_users(users_db)
-
-    session['nickname'] = nickname
-    session['is_admin'] = False
-
-    return redirect(url_for('chat'))
-
-@app.route('/login', methods=['POST'])
-def login():
-    nickname = request.form.get('nickname').strip()
-    password = request.form.get('password').strip()
-
-    if not nickname or not password:
-        return "Nickname ve şifre gerekli.", 400
-
-    if nickname.lower() == 'admin':
-        if password != ADMIN_PASSWORD:
-            return "Admin şifresi yanlış.", 403
-        session['nickname'] = 'admin'
-        session['is_admin'] = True
-        return redirect(url_for('chat'))
-
-    users_db = load_users()
-    if nickname not in users_db:
-        return "Böyle bir kullanıcı yok.", 403
-
-    if users_db[nickname] != password:
-        return "Şifre yanlış.", 403
-
-    if nickname in banned_users:
-        return "Banlandınız.", 403
-
-    session['nickname'] = nickname
-    session['is_admin'] = False
-
-    return redirect(url_for('chat'))
+def nickname():
+    return render_template('nickname.html')
 
 @app.route('/chat')
 def chat():
-    nickname = session.get('nickname')
+    nickname = request.args.get('nickname')
+    admin_flag = request.args.get('admin')
+    password = request.args.get('password')
+
     if not nickname:
-        return redirect(url_for('home'))
-    is_admin = session.get('is_admin', False)
-    return render_template('chat.html', nickname=nickname, admin=is_admin)
+        return redirect(url_for('nickname'))
+
+    if nickname.lower() == 'admin':
+        if admin_flag != '1' or password != ADMIN_PASSWORD:
+            return redirect(url_for('nickname'))
+
+    if nickname in banned:
+        return "Yasaklısınız.", 403
+
+    return render_template('chat.html', nickname=nickname, admin=(nickname.lower() == 'admin'))
 
 @socketio.on('join')
 def on_join(data):
     sid = request.sid
-    nickname = session.get('nickname')
-    ip = request.remote_addr
+    nick = data.get('nickname')
+    users[sid] = nick
+    ips[sid] = request.remote_addr
 
-    if not nickname:
-        disconnect()
-        return
-
-    if nickname in banned_users:
-        disconnect()
-        return
-
-    users[sid] = nickname
-    user_ips[nickname] = ip
-
-    msg = f"{nickname} katıldı."
+    msg = f"{nick} katıldı."
     messages.append(msg)
     emit('message', {'msg': msg, 'admin': False}, broadcast=True)
-
-    # Yeni gelen kişiye geçmiş mesajları gönder
-    for m in messages:
-        emit('message', {'msg': m, 'admin': False})
 
 @socketio.on('disconnect')
 def on_disconnect():
     sid = request.sid
-    nickname = users.get(sid)
-    if nickname:
-        msg = f"{nickname} ayrıldı."
+    nick = users.get(sid)
+    if nick:
+        msg = f"{nick} ayrıldı."
         messages.append(msg)
         emit('message', {'msg': msg, 'admin': False}, broadcast=True)
         users.pop(sid)
-        user_ips.pop(nickname, None)
-        muted_users.discard(nickname)
+        ips.pop(sid, None)
+        muted.discard(nick)
+        banned.discard(nick)
+    # Sesli chat peer bağlantılarını kaldır
+    emit('voice-user-left', {'sid': sid}, broadcast=True, include_self=False)
 
-@socketio.on('message')
-def handle_message(data):
+# --- SESLİ CHAT EKLEMELERİ ---
+
+@socketio.on('voice-on')
+def handle_voice_on():
     sid = request.sid
-    nickname = users.get(sid)
-    if not nickname:
-        return
+    emit('voice-user-joined', {'sid': sid}, broadcast=True, include_self=False)
 
-    text = data.get('msg', '').strip()
-    if not text:
-        return
+@socketio.on('voice-off')
+def handle_voice_off():
+    sid = request.sid
+    emit('voice-user-left', {'sid': sid}, broadcast=True, include_self=False)
 
-    is_admin = session.get('is_admin', False)
+@socketio.on('voice-offer')
+def handle_voice_offer(data):
+    to = data.get('to')
+    offer = data.get('offer')
+    from_sid = request.sid
+    emit('voice-offer', {'from': from_sid, 'offer': offer}, to=to)
 
-    # Admin komutları
-    if is_admin:
-        if text.startswith('/reset'):
-            messages.clear()
-            emit('message', {'msg': 'Sohbet temizlendi (reset).', 'admin': True}, broadcast=True)
-            return
+@socketio.on('voice-answer')
+def handle_voice_answer(data):
+    to = data.get('to')
+    answer = data.get('answer')
+    from_sid = request.sid
+    emit('voice-answer', {'from': from_sid, 'answer': answer}, to=to)
 
-        if text.startswith('/ban '):
-            target = text.split(' ', 1)[1].strip()
-            if target:
-                banned_users.add(target)
-                emit('message', {'msg': f"Kullanıcı banlandı: {target}", 'admin': True}, broadcast=True)
-                for sid_, nick_ in list(users.items()):
-                    if nick_ == target:
-                        emit('message', {'msg': 'Banlandığınız için bağlantınız kesildi.', 'admin': True}, room=sid_)
-                        disconnect(sid_)
-                return
-
-        if text.startswith('/mute '):
-            target = text.split(' ', 1)[1].strip()
-            if target:
-                muted_users.add(target)
-                emit('message', {'msg': f"Kullanıcı susturuldu: {target}", 'admin': True}, broadcast=True)
-                return
-
-        if text.startswith('/unmute '):
-            target = text.split(' ', 1)[1].strip()
-            if target:
-                muted_users.discard(target)
-                emit('message', {'msg': f"Kullanıcının susturulması kaldırıldı: {target}", 'admin': True}, broadcast=True)
-                return
-
-        if text.startswith('/exit'):
-            emit('message', {'msg': f"Admin {nickname} çıkıyor.", 'admin': True}, broadcast=True)
-            disconnect()
-            return
-
-    if nickname in muted_users:
-        emit('message', {'msg': 'Susturuldunuz, mesaj gönderemezsiniz.', 'admin': True}, room=sid)
-        return
-
-    full_msg = f"{nickname}: {text}"
-    messages.append(full_msg)
-    emit('message', {'msg': full_msg, 'admin': False}, broadcast=True)
+@socketio.on('voice-candidate')
+def handle_voice_candidate(data):
+    to = data.get('to')
+    candidate = data.get('candidate')
+    from_sid = request.sid
+    emit('voice-candidate', {'from': from_sid, 'candidate': candidate}, to=to)
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)
