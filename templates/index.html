@@ -1,16 +1,22 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>My Flask App</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Anonim Sohbet</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
-
-    <h1>Merhaba Flask!</h1>
-    <button id="btn">Bana Tıkla!</button>
-
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+  <div class="container">
+    <h1>Anonim Sohbet Odası</h1>
+    <div class="chat-box" id="chat-box"></div>
+    <input type="text" id="message-input" placeholder="Mesajını yaz ve Enter'a bas...">
+  </div>
+  <script>
+    const nickname = "{{ nickname }}";
+  </script>
+  <script src="{{ url_for('static', filename='chat.js') }}"></script>
 </body>
 </html>
 
